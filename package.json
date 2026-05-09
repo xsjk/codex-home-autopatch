@@ -2,7 +2,7 @@
   "name": "codex-home-autopatch",
   "displayName": "Codex HOME AutoPatch",
   "description": "Automatically patches the OpenAI Codex VS Code extension to use per-workspace CODEX_HOME under ~/.codex/workspaces.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "xsjk",
   "license": "MIT",
   "repository": {
@@ -21,13 +21,21 @@
     "configuration": {
       "title": "Codex HOME AutoPatch",
       "properties": {
-        "codex-home-autopatch.entries": {
+        "codex-home-autopatch.linkEntries": {
           "type": "array",
           "default": ["auth.json", "config.toml", "AGENTS.md", "rules", "skills", "plugins", "agents"],
           "items": {
             "type": "string"
           },
-          "description": "Entries under ~/.codex to symlink into the per-workspace CODEX_HOME. (Restart the extension host after changing this setting.)"
+          "description": "Entries under ~/.codex to link into the per-workspace CODEX_HOME. (Restart the extension host after changing this setting.)"
+        },
+        "codex-home-autopatch.copyEntries": {
+          "type": "array",
+          "default": ["sessions", "session_index.jsonl"],
+          "items": {
+            "type": "string"
+          },
+          "description": "Entries under ~/.codex to copy into the per-workspace CODEX_HOME when the destination does not exist. (Restart the extension host after changing this setting.)"
         }
       }
     }

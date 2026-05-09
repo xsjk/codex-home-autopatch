@@ -24,18 +24,28 @@ const SNIPPET = `${MARK}
 
     fs.mkdirSync(dst, { recursive: true });
 
-    const entries = vscode.workspace.getConfiguration("codex-home-autopatch").get("entries");
+    const config = vscode.workspace.getConfiguration("codex-home-autopatch");
+    const linkEntries = config.get("linkEntries");
+    const copyEntries = config.get("copyEntries");
+    const syncEntries = (entries, sync) => {
+        for (const entry of entries) {
+            const from = path.join(src, entry);
+            const to = path.join(dst, entry);
+            if (!fs.existsSync(from) || fs.existsSync(to)) continue;
 
-    for (const entry of entries) {
-        const from = path.join(src, entry);
-        const to = path.join(dst, entry);
-        if (!fs.existsSync(from) || fs.existsSync(to)) continue;
+            fs.mkdirSync(path.dirname(to), { recursive: true });
+            sync(from, to);
+        }
+    };
 
-        fs.mkdirSync(path.dirname(to), { recursive: true });
-
+    syncEntries(linkEntries, (from, to) => {
         const isDir = fs.statSync(from).isDirectory();
         fs.symlinkSync(from, to, isDir && process.platform === "win32" ? "junction" : isDir ? "dir" : "file");
-    }
+    });
+
+    syncEntries(copyEntries, (from, to) => {
+        fs.cpSync(from, to, { recursive: true });
+    });
 
     process.env.CODEX_HOME = dst;
 })();

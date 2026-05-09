@@ -24,10 +24,14 @@ const SNIPPET = `${MARK}
 
     fs.mkdirSync(dst, { recursive: true });
 
-    for (const entry of ["auth.json", "config.toml", "AGENTS.md", "rules", "skills", "plugins", "agents"]) {
+    const entries = vscode.workspace.getConfiguration("codex-home-autopatch").get("entries");
+
+    for (const entry of entries) {
         const from = path.join(src, entry);
         const to = path.join(dst, entry);
         if (!fs.existsSync(from) || fs.existsSync(to)) continue;
+
+        fs.mkdirSync(path.dirname(to), { recursive: true });
 
         const isDir = fs.statSync(from).isDirectory();
         fs.symlinkSync(from, to, isDir && process.platform === "win32" ? "junction" : isDir ? "dir" : "file");

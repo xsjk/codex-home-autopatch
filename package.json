@@ -17,5 +17,20 @@
   "main": "./extension.js",
   "extensionKind": ["workspace"],
   "extensionDependencies": ["openai.chatgpt"],
+  "contributes": {
+    "configuration": {
+      "title": "Codex HOME AutoPatch",
+      "properties": {
+        "codex-home-autopatch.entries": {
+          "type": "array",
+          "default": ["auth.json", "config.toml", "AGENTS.md", "rules", "skills", "plugins", "agents"],
+          "items": {
+            "type": "string"
+          },
+          "description": "Entries under ~/.codex to symlink into the per-workspace CODEX_HOME. (Restart the extension host after changing this setting.)"
+        }
+      }
+    }
+  },
   "files": ["extension.js", "README.md", "LICENSE"]
 }

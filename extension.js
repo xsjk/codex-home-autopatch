@@ -2,10 +2,18 @@ const vscode = require("vscode");
 const fs = require("fs");
 const path = require("path");
 
-const MARK_BEGIN = "/* codex-home-autopatch:begin */";
-const INJECTED_SNIPPET = `${MARK_BEGIN}
+const PATCH_OWNER = "xsjk.codex-home-autopatch";
+const TARGET = "openai.chatgpt";
+const MARK = "/* codex-home-autopatch:begin */";
+const SNIPPET = `${MARK}
 (() => {
     const fs = require("fs"), path = require("path"), vscode = require("vscode"), os = require("os");
+
+    if (!vscode.extensions.getExtension("${PATCH_OWNER}")) {
+        const backup = __filename + ".bak";
+        if (fs.existsSync(backup)) fs.copyFileSync(backup, __filename);
+        return;
+    }
 
     const name = vscode.workspace.name;
     const home = os.homedir();
@@ -30,29 +38,17 @@ const INJECTED_SNIPPET = `${MARK_BEGIN}
 /* codex-home-autopatch:end */`;
 
 async function activate() {
-    const target = vscode.extensions.getExtension("openai.chatgpt");
-    const mainPath = path.join(target.extensionPath, "out", "extension.js");
+    const mainPath = path.join(vscode.extensions.getExtension(TARGET).extensionPath, "out", "extension.js");
     const source = fs.readFileSync(mainPath, "utf8");
+    if (source.includes(MARK)) return;
 
-    if (source.includes(MARK_BEGIN)) {
-        return;
+    const backupPath = `${mainPath}.bak`;
+    if (!fs.existsSync(backupPath)) {
+        fs.writeFileSync(backupPath, source, "utf8");
     }
 
-    const patched = source.replace(
-        '"use strict";',
-        `"use strict";\n\n${INJECTED_SNIPPET}\n\n`
-    );
-
-    fs.writeFileSync(mainPath, patched, "utf8");
-    const action = await vscode.window.showInformationMessage(
-        "Codex HOME AutoPatch applied. Reload this window now?",
-        { modal: true },
-        "Reload Window"
-    );
-
-    if (action === "Reload Window") {
-        await vscode.commands.executeCommand("workbench.action.reloadWindow");
-    }
+    fs.writeFileSync(mainPath, source.replace('"use strict";', `"use strict";\n\n${SNIPPET}\n\n`), "utf8");
+    await vscode.commands.executeCommand("workbench.action.restartExtensionHost");
 }
 
 module.exports = { activate };

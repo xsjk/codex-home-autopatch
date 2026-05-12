@@ -1,8 +1,8 @@
 {
   "name": "codex-home-autopatch",
   "displayName": "Codex HOME AutoPatch",
-  "description": "Automatically patches the OpenAI Codex VS Code extension to use per-workspace CODEX_HOME under ~/.codex/workspaces.",
-  "version": "0.0.3",
+  "description": "Deprecated: split CODEX_HOME makes codex CLI usage awkward; migrate before installing Codex Workspace Filter.",
+  "version": "0.0.4",
   "publisher": "xsjk",
   "license": "MIT",
   "repository": {
@@ -15,6 +15,9 @@
   "categories": ["Other"],
   "activationEvents": ["onStartupFinished"],
   "main": "./extension.js",
+  "scripts": {
+    "migrate": "python3 scripts/merge-codex-workspaces.py"
+  },
   "extensionKind": ["workspace"],
   "extensionDependencies": ["openai.chatgpt"],
   "contributes": {
@@ -40,5 +43,5 @@
       }
     }
   },
-  "files": ["extension.js", "README.md", "LICENSE"]
+  "files": ["extension.js", "README.md", "LICENSE", "scripts/merge-codex-workspaces.py"]
 }

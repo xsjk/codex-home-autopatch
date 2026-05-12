@@ -3,6 +3,8 @@ const fs = require("fs");
 const path = require("path");
 
 const PATCH_OWNER = "xsjk.codex-home-autopatch";
+const REPLACEMENT = "xsjk.codex-workspace-filter";
+const MIGRATION_URL = "https://github.com/xsjk/codex-home-autopatch#migration";
 const TARGET = "openai.chatgpt";
 const MARK = "/* codex-home-autopatch:begin */";
 const SNIPPET = `${MARK}
@@ -51,8 +53,54 @@ const SNIPPET = `${MARK}
 })();
 /* codex-home-autopatch:end */`;
 
-async function activate() {
-    const mainPath = path.join(vscode.extensions.getExtension(TARGET).extensionPath, "out", "extension.js");
+function restorePatchedCodex(mainPath) {
+    const source = fs.readFileSync(mainPath, "utf8");
+    if (!source.includes(MARK)) return false;
+
+    const backupPath = `${mainPath}.bak`;
+    if (!fs.existsSync(backupPath)) return false;
+
+    fs.copyFileSync(backupPath, mainPath);
+    return true;
+}
+
+async function showMigrationNotice(context, key, message) {
+    if (context.globalState.get(key)) return;
+
+    const action = await vscode.window.showWarningMessage(message, "Read migration");
+    if (!action) return;
+
+    await context.globalState.update(key, true);
+    await vscode.env.openExternal(vscode.Uri.parse(MIGRATION_URL));
+}
+
+async function activate(context) {
+    const targetExtension = vscode.extensions.getExtension(TARGET);
+    if (!targetExtension) {
+        vscode.window.showWarningMessage("Codex HOME AutoPatch could not find the OpenAI Codex extension.");
+        return;
+    }
+
+    const mainPath = path.join(targetExtension.extensionPath, "out", "extension.js");
+    if (vscode.extensions.getExtension(REPLACEMENT)) {
+        const restored = restorePatchedCodex(mainPath);
+        await showMigrationNotice(
+            context,
+            "codexHomeAutopatchReplacementNoticeShown",
+            "Codex HOME AutoPatch is deprecated because splitting CODEX_HOME by workspace name makes codex CLI usage awkward and leaves sessions under ~/.codex/workspaces. Read the migration guide before continuing.",
+        );
+        if (restored) {
+            await vscode.commands.executeCommand("workbench.action.restartExtensionHost");
+        }
+        return;
+    }
+
+    await showMigrationNotice(
+        context,
+        "codexHomeAutopatchDeprecationNoticeShown",
+        "Codex HOME AutoPatch is deprecated because splitting CODEX_HOME by workspace name makes codex CLI usage awkward and leaves sessions under ~/.codex/workspaces. Read the migration guide before installing Codex Workspace Filter.",
+    );
+
     const source = fs.readFileSync(mainPath, "utf8");
     if (source.includes(MARK)) return;
 

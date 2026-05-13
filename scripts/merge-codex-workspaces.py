@@ -15,14 +15,21 @@ opts = parser.parse_args()
 
 target = opts.target.expanduser()
 workspace_root = target / "workspaces"
-sources = [path.expanduser() for path in opts.source] or (sorted(path for path in workspace_root.iterdir() if path.is_dir()) if workspace_root.exists() else [])
+sources = [path.expanduser() for path in opts.source] or sorted(path.parent for path in workspace_root.glob("*/session_index.jsonl"))
+
+
+homes = [(target, "target"), *((source, source.name) for source in sources)]
+names = {}
+for home, _ in homes:
+    for row in map(json.loads, (home / "session_index.jsonl").read_text(encoding="utf-8").splitlines()):
+        sid = row["id"]
+        if row["thread_name"] != sid and (sid not in names or row["updated_at"] > names[sid]["updated_at"]):
+            names[sid] = row
 
 
 def scan(home, label):
-    index_file = home / "session_index.jsonl"
-    names = {row["id"]: row["thread_name"] for row in map(json.loads, index_file.read_text(encoding="utf-8").splitlines())} if index_file.exists() else {}
     root = home / "sessions"
-    for file in sorted(root.rglob("*.jsonl")) if root.exists() else []:
+    for file in sorted(root.rglob("*.jsonl")):
         with file.open(encoding="utf-8") as f:
             first = f.readline()
             last = first
@@ -30,11 +37,12 @@ def scan(home, label):
                 pass
         meta = json.loads(first)["payload"]
         sid = meta["id"]
-        yield Session(sid, file, file.relative_to(root), label, json.loads(last)["timestamp"], names[sid] if sid in names else sid)
+        name = names[sid]["thread_name"] if sid in names else ""
+        yield Session(sid, file, file.relative_to(root), label, json.loads(last)["timestamp"], name)
 
 
 groups = defaultdict(list)
-for home, label in [(target, "target"), *((source, source.name) for source in sources)]:
+for home, label in homes:
     for session in scan(home, label):
         groups[session.id].append(session)
 
@@ -60,9 +68,8 @@ for action, session in rows:
 if input("\nApply this plan? [y/N] ").strip().lower() != "y":
     print("No files changed.")
 else:
-    for action, session in rows:
-        if action == "drop" and session.label == "target":
-            session.file.unlink()
+    for session in (session for action, session in rows if action == "drop" and session.label == "target"):
+        session.file.unlink()
     for keep in kept:
         dest = target / "sessions" / keep.rel
         if keep.file != dest:
@@ -70,5 +77,7 @@ else:
             shutil.copy2(keep.file, dest)
     index_file = target / "session_index.jsonl"
     index_file.parent.mkdir(parents=True, exist_ok=True)
-    index_file.write_text("".join(json.dumps({"id": keep.id, "thread_name": keep.name, "updated_at": keep.updated}, ensure_ascii=False) + "\n" for keep in kept), encoding="utf-8")
+    named = [{"id": keep.id, "thread_name": keep.name, "updated_at": names[keep.id]["updated_at"]} for keep in kept if keep.name]
+    named.sort(key=lambda row: (row["updated_at"], row["id"]))
+    index_file.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in named), encoding="utf-8")
     print("Applied.")
